@@ -1,4 +1,4 @@
 @echo off
 cd /d %~dp0
-perl -w import-images.pl
+perl -w import-images.pl --archive
 pause

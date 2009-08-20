@@ -5,7 +5,7 @@ use DateTime::Duration;
 use Image::ExifTool;
 use Data::Dumper;
 use File::Glob qw(bsd_glob);
-use File::Basename qw(basename);
+use File::Basename qw(basename dirname);
 use File::Spec;
 use File::Copy qw(cp move);
 use Memoize qw(memoize);
@@ -72,9 +72,9 @@ sub archive_dir {
     if ($archive_dir) {
         my $dir = dirname $file;
         my $adir = File::Spec->catdir($dir,$archive_dir);
-        if( -d && ! -d $dir) {
-            mkdir $dir
-                or warn "Couldn't create archive directory '$dir'";
+        if( ! -d $adir) {
+            mkdir $adir
+                or warn "Couldn't create archive directory '$adir'";
             return undef
         };
         return $adir
