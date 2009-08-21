@@ -15,7 +15,7 @@ use Pod::Usage;
 
 use lib 'lib';
 use lib '../lib';
-use Progress::Indicator;
+use Progress::Indicator qw'progress';
 
 GetOptions(
     'target|t=s' => \my $target,
@@ -114,7 +114,7 @@ if ($verbose) {
 my $last_time = DateTime->from_epoch( epoch => 1 );
 my $target_directory;
 for my $image (@files) {
-    progress 'Processing', \@files;
+    progress( \@files, 'Processing' );
     my $this_distance = (capture_date($image) - $last_time);
     if ($reference+$this_distance > $reference+$distance) {
         $target_directory = File::Spec->catdir($target,capture_date($image)->strftime('%Y%m%d-%H%M'));
