@@ -15,7 +15,44 @@ eval {
     my ($out) = select;
     return if (! -t $out);
     $line_width = chars($out);
-}
+};
+
+sub build_line {
+    my ($i) = @_;
+    
+    # build the items
+    my @visuals;
+    my %info;
+    
+    # calculate some helpers
+    my $now = time();
+    $i->{position} = $i->{get_position}->($i);
+    $info{ elapsed }= ($now - $i->{start}) || 1;
+    $info{ per_sec }= sprintf "%0.2f/s", $i->{position} / $info{ elapsed }; # /
+    $info{ position }= sprintf "%d", $i->{position};
+
+    if ($i->{total}) {
+        $info{ position }= sprintf "(%d of %d)", $i->{position}, $i->{total};
+        $info{ percent_done }= sprintf "%0.2f%%", $i->{position} / $i->{total} * 100; #  /
+        $info{ remaining }= int (($i->{total} - $i->{position}) / $info{ per_sec });
+        $info{ remaining }= strftime( 'Remaining: %H:%M:%S', gmtime($info{ remaining }));
+    };
+    
+    my @columns;
+    if ($i->{total}) {
+        @columns = qw(info percent_done position per_sec remaining);
+    } else {
+        @columns = qw(info position per_sec);
+    };
+    
+    # add them while there's still place
+    my $line = "";
+    for (@columns) {
+        return $line if length($line . " $info{$_}") > $line_width-1;
+        $line .= " $info{ $_ }";
+    }
+    return $line
+};
 
 sub handle_unsized {
     my ($i) = @_;
@@ -26,14 +63,7 @@ sub handle_unsized {
     if ($i->{last} + $i->{interval} <= $now ) {
         local $|;
         $| = 1;
-        $i->{position} = $i->{get_position}->($i);
-        my $elapsed = $now - $i->{start};
-        my $per_sec = $i->{position} / $elapsed; # /
-        my $line = sprintf "%s\t(%d)\t\t%0.2f/s",
-            $i->{info},
-            $i->{position}, 
-            $per_sec
-            ;
+        my $line = build_line($i);
         my $lastline = $i->{lastline};
         $i->{lastline} = $line;
         while (length $line < length($lastline)) {
@@ -53,20 +83,7 @@ sub handle_sized {
     if ($i->{last} + $i->{interval} <= $now ) {
         local $|;
         $| = 1;
-        $i->{position} = $i->{get_position}->($i);
-        my $perc = $i->{position} / $i->{total}; #  /
-        my $elapsed = $now - $i->{start};
-        my $per_sec = $i->{position} / $elapsed; # /
-        my $remaining = int (($i->{total} - $i->{position}) / $per_sec);
-        #warn $remaining;
-        $remaining = strftime( '%H:%M:%S', gmtime($remaining));
-        my $line = sprintf "%s\t%d%% (%d of %d)\t\t%0.2f/s\t\tRemaining: %s",
-            $i->{info},
-            $perc * 100,
-            $i->{position}, 
-            $i->{total},
-            $per_sec,
-            $remaining;
+        my $line = build_line($i);
         my $lastline = $i->{lastline};
         $i->{lastline} = $line;
         while (length $line < length($lastline)) {
