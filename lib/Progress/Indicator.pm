@@ -3,9 +3,19 @@ use strict;
 use Time::HiRes;
 use POSIX qw(strftime);
 
-use vars qw'%indicator $VERSION';
+use vars qw'%indicator $VERSION $line_width';
 
 $VERSION = '0.10';
+
+$line_width = 80; # a best guess
+
+eval { 
+    require Term::Size::Any;
+    Term::Size::Any->import('chars');
+    my ($out) = select;
+    return if (! -t $out);
+    $line_width = chars($out);
+}
 
 sub handle_unsized {
     my ($i) = @_;
@@ -48,7 +58,7 @@ sub handle_sized {
         my $elapsed = $now - $i->{start};
         my $per_sec = $i->{position} / $elapsed; # /
         my $remaining = int (($i->{total} - $i->{position}) / $per_sec);
-        warn $remaining;
+        #warn $remaining;
         $remaining = strftime( '%H:%M:%S', gmtime($remaining));
         my $line = sprintf "%s\t%d%% (%d of %d)\t\t%0.2f/s\t\tRemaining: %s",
             $i->{info},
@@ -116,7 +126,7 @@ sub new_indicator {
     };
 }
 
-sub progress(*$;$) {
+sub progress {
     my ($item,$info,$options) = @_;
     
     # No output if we're not interactive
@@ -130,11 +140,13 @@ sub progress(*$;$) {
 }
 
 sub import {
-    my $target = caller(0);
-    my ($name) = @_;
-    $name ||= 'progress';
+    my ($this,$name) = @_;
+    if (! defined $name) {
+        $name = 'progress';
+    };
+    my $target = caller();
     no strict 'refs';
-    *{ "$target\::$name" } = \&progress;
+    *{"$target\::$name"} = \&progress;
 }
 
 1;
