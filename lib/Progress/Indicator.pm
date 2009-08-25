@@ -28,13 +28,15 @@ sub build_line {
     my $now = time();
     $i->{position} = $i->{get_position}->($i);
     $info{ elapsed }= ($now - $i->{start}) || 1;
-    $info{ per_sec }= sprintf "%0.2f/s", $i->{position} / $info{ elapsed }; # /
+    my $per_sec =$i->{position} / $info{ elapsed }; # /
+    $info{ per_sec }= sprintf "%0.2f/s", $per_sec;
     $info{ position }= sprintf "%d", $i->{position};
+    $info{ info }= $i->{ info };
 
     if ($i->{total}) {
         $info{ position }= sprintf "(%d of %d)", $i->{position}, $i->{total};
         $info{ percent_done }= sprintf "%0.2f%%", $i->{position} / $i->{total} * 100; #  /
-        $info{ remaining }= int (($i->{total} - $i->{position}) / $info{ per_sec });
+        $info{ remaining }= int( ($i->{total} - $i->{position}) / $per_sec );
         $info{ remaining }= strftime( 'Remaining: %H:%M:%S', gmtime($info{ remaining }));
     };
     
