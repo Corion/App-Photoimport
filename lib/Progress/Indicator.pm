@@ -48,7 +48,7 @@ sub build_line {
     };
     
     # add them while there's still place
-    my $line = "";
+    my $line = $info{ +shift @columns };
     for (@columns) {
         return $line if length($line . " $info{$_}") > $line_width-1;
         $line .= " $info{ $_ }";
