@@ -10,6 +10,17 @@ use File::Spec;
 use File::Copy qw(cp move);
 use Memoize qw(memoize);
 
+BEGIN {
+    if ($^O =~ /\bMSWin32\b|\bcygwin\b/) {
+        require Win32::API;
+        Win32::API->import();
+        Win32::API->Import('kernel32', 'SetErrorMode', 'I', 'I');
+
+        my $errormode = SetErrorMode(1); # fetch old error mode
+        SetErrorMode(1 | $errormode); # no AbortRetryFail messages anymore
+    };
+};
+
 use Getopt::Long;
 use Pod::Usage;
 
