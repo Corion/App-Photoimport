@@ -109,6 +109,11 @@ sub new_indicator {
         $total = @$item;
         $per_item = sub { $_[0]->{position}++ };
         $get_position = sub { $_[0]->{position} };
+    } elsif (ref $item eq 'SCALAR') {
+        # A total number
+        $position = 0;
+        $total = $options->{total};
+        $get_position = sub { $$item };
     } elsif (ref $item eq 'GLOB' or ref $item eq 'IO::Handle') {
         # A file which we can maybe size        
         if (seek $item, 0,0) { # seekable, we can trust -s ??
