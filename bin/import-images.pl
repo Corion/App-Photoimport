@@ -71,9 +71,13 @@ $|++;
 print "Reading files";
 
 if (! @ARGV) {
-    @ARGV = qw(
-        E:/DCIM/*
-        D:/DCIM/*
+    # XXX Should check all "removable drives" instead of hardcoding
+    @ARGV = (qw(
+        F:/DCIM/*
+        G:/DCIM/*
+        H:/DCIM/*
+        I:/DCIM/*
+    ),
     );
 };
 
