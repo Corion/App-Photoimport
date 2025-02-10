@@ -69,14 +69,25 @@ $|++;
 print "Reading files";
 
 if (! @ARGV) {
-    # XXX Should check all "removable drives" instead of hardcoding
-    @ARGV = (qw(
-        F:/DCIM/*
-        G:/DCIM/*
-        H:/DCIM/*
-        I:/DCIM/*
-    ),
-    );
+    if( $^O =~ /mswin/i ) {
+        # XXX Should check all "removable drives" instead of hardcoding
+        @ARGV = (qw(
+            F:/DCIM/*
+            G:/DCIM/*
+            H:/DCIM/*
+            I:/DCIM/*
+        ),
+        );
+    } else {
+        # Get all mounted gvfs directories with a DCIM subdirectory
+        # and all other mounted directories with a DCIM subdirectory
+        # Yes, this is highly Debian/Linux-specific
+        @ARGV = (glob('/var/run/user/1000/gvfs/*/*/DCIM/*'),
+                 map { "$_/*" }
+                 grep { -d }
+                 map { m!-> file://(.*)$! ? "$1/DCIM" : () } `gio mount -l`
+                );
+    };
 };
 
 if ($verbose) {
