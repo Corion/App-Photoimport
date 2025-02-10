@@ -12,12 +12,10 @@ use Memoize qw(memoize);
 
 BEGIN {
     if ($^O =~ /\bMSWin32\b|\bcygwin\b/) {
-        require Win32::API;
-        Win32::API->import();
-        Win32::API->Import('kernel32', 'SetErrorMode', 'I', 'I');
+        require Win32API::File;
+        Win32API::File->import(qw<SetErrorMode SEM_FAILCRITICALERRORS>);
 
-        my $errormode = SetErrorMode(1); # fetch old error mode
-        SetErrorMode(1 | $errormode); # no AbortRetryFail messages anymore
+        SetErrorMode( SEM_FAILCRITICALERRORS() | SetErrorMode(0) );
     };
 };
 
