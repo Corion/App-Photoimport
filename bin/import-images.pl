@@ -27,16 +27,20 @@ use lib '../lib';
 use Progress::Indicator qw'progress';
 
 GetOptions(
-    'target|t=s' => \my $target,
-    'archive|a'  => \my $archive_dir,
-    'verbose|v' => \my $verbose,
+    'target|t=s'      => \my $target,
+    'archive|a'       => \my $archive_dir,
+    'verbose|v'       => \my $verbose,
     'buffer-size|b=i' => \my $bufsize,
+    'dry-run|n'       => \my $dry_run,
+    'action=s'        => \my $action,
 ) or pod2usage(1);
 
-$bufsize ||= 16384 * 1024 * 1024;
+$bufsize ||= 65536 * 1024 * 1024;
 if ($archive_dir) {
     $archive_dir = 'archive';
 };
+
+$action //= 'copy';
 
 sub take($;@) {
     my $list = shift;
@@ -114,8 +118,12 @@ memoize('archive_dir');
 sub archive_file {
     my ($file) = @_;
     if (defined( my $archive = archive_dir($file))) {
-        move $_[0] => $archive
-            or warn "Couldn't archive $_[0]: $!";
+        if( $dry_run ) {
+            say "move$_[0] => $archive";
+        } else {
+            move $_[0] => $archive
+                or warn "Couldn't archive $_[0]: $!";
+        }
     }
 }
 
@@ -154,7 +162,15 @@ for my $image (@files) {
     if (-f $target_name) {
         warn "$target_name already exists, skipped.\n";
     } else {
-        cp $image => $target_name, $bufsize;
-        archive_file( $image );
+        if( $dry_run ) {
+            say "$action $image $target_name";
+        } else {
+            if( 'copy' eq $action ) {
+                cp $image => $target_name, $bufsize;
+                archive_file( $image );
+            } elsif( 'move' eq $action ) {
+                move $image => $target_name, $bufsize;
+            };
+        }
     }
 };
