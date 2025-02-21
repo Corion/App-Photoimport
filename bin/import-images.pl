@@ -86,7 +86,7 @@ if (! @ARGV) {
         # Get all mounted gvfs directories with a DCIM subdirectory
         # and all other mounted directories with a DCIM subdirectory
         # Yes, this is highly Debian/Linux-specific
-        @ARGV = (glob("$XDG_RUNTIME_DIR/gvfs/*/*/DCIM/*"),
+        @ARGV = (glob("$ENV{XDG_RUNTIME_DIR}/gvfs/*/*/DCIM/*"),
                  map { "$_/*" }
                  grep { -d }
                  map { m!-> file://(.*)$! ? "$1/DCIM" : () } `gio mount -l`
