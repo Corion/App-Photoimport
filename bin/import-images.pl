@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-use strict;
+use 5.020;
 use DateTime;
 use DateTime::Duration;
 use Image::ExifTool;
