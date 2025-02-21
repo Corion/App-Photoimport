@@ -169,7 +169,8 @@ for my $image (@files) {
                 cp $image => $target_name, $bufsize;
                 archive_file( $image );
             } elsif( 'move' eq $action ) {
-                move $image => $target_name, $bufsize;
+                move $image => $target_name
+                    or warn "Couldn't move '$image' to '$target_name': $!";
             };
         }
     }
