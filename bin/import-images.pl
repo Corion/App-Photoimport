@@ -89,7 +89,10 @@ if (! @ARGV) {
         @ARGV = (glob("$ENV{XDG_RUNTIME_DIR}/gvfs/*/*/DCIM/*"),
                  map { "$_/*" }
                  grep { -d }
-                 map { m!-> file://(.*)$! ? "$1/DCIM" : () } `gio mount -l`
+                 map { m!-> file://(.*)$! ? "$1/DCIM"
+                     : m!-> mtp://(.*)$!  ? "$1/Interner gemeinsamer Speicher/DCIM"
+                     : ()
+                     } `gio mount -l`
                 );
     };
 };
