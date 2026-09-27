@@ -9,6 +9,7 @@ use File::Basename qw(basename dirname);
 use File::Spec;
 use File::Copy qw(cp move);
 use Memoize qw(memoize);
+use Term::Output::List;
 
 BEGIN {
     if ($^O =~ /\bMSWin32\b|\bcygwin\b/) {
@@ -21,10 +22,6 @@ BEGIN {
 
 use Getopt::Long;
 use Pod::Usage;
-
-use lib 'lib';
-use lib '../lib';
-use Progress::Indicator qw'progress';
 
 GetOptions(
     'target|t=s'      => \my $target,
@@ -69,8 +66,8 @@ sub capture_date {
 }
 
 memoize('capture_date');
-$|++;
-print "Reading files";
+my $printer = Term::Output::List->new( hook_warnings => 1 );
+$printer->output_list("Reading files");
 
 if (! @ARGV) {
     if( $^O =~ /mswin/i ) {
@@ -142,17 +139,17 @@ my @files = sort { capture_date($a) <=> capture_date($b) }
 my $distance = DateTime::Duration->new( hours => 5  );
 my $reference = DateTime->now;
 
-printf ", found %s unsorted images\n", scalar @files;
+$printer->output_list(sprintf "%s unsorted images", scalar @files);
 
 if ($verbose) {
-    print "Copying to $target\n";
+    $printer->output_permanent("Copying to $target");
 }
 
 my $last_time = DateTime->from_epoch( epoch => 1 );
 my $target_directory;
 for my $image (@files) {
     my $capture_date = capture_date($image)->strftime('%Y%m%d-%H%M');
-    progress( \@files, "Processing $capture_date" );
+    $printer->output_list("Processing $capture_date");
     my $this_distance = (capture_date($image) - $last_time);
     if ($reference+$this_distance > $reference+$distance) {
         $target_directory = File::Spec->catdir($target,$capture_date);
