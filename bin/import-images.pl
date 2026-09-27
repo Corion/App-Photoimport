@@ -180,3 +180,4 @@ for my $image (@files) {
         }
     }
 };
+$printer->output_list();
