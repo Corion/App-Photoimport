@@ -32,7 +32,7 @@ GetOptions(
     'action=s'        => \my $action,
 ) or pod2usage(1);
 
-$bufsize ||= 65536 * 1024 * 1024;
+$bufsize //= 65536 * 1024 * 1024;
 if ($archive_dir) {
     $archive_dir = 'archive';
 };
