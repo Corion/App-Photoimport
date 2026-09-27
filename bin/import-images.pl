@@ -143,11 +143,10 @@ my @files = sort { capture_date($a) <=> capture_date($b) }
 my $distance = DateTime::Duration->new( hours => 5  );
 my $reference = DateTime->now;
 
-$printer->output_list(sprintf "%s unsorted images", scalar @files);
+if( scalar @files ) {
+    $printer->output_list(sprintf "%s unsorted images in %s", scalar(@files), join ", ", @ARGV);
+};
 
-if ($verbose) {
-    $printer->output_permanent("Copying to $target");
-}
 
 my $last_time = DateTime->from_epoch( epoch => 1 );
 my $target_directory;
