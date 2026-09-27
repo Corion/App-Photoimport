@@ -82,6 +82,8 @@ if (! @ARGV) {
             I:/DCIM/*
         ),
         );
+    } elsif( $ENV{TERMUX_PP_PID} ) {
+        @ARGV = ("$ENV{HOME}/storage/dcim/*");
     } else {
         # Get all mounted gvfs directories with a DCIM subdirectory
         # and all other mounted directories with a DCIM subdirectory
