@@ -82,14 +82,18 @@ if (! @ARGV) {
     } elsif( $ENV{TERMUX_PP_PID} ) {
         @ARGV = (glob "$ENV{HOME}/storage/dcim/*");
     } else {
+        my %seen;
         # Get all mounted gvfs directories with a DCIM subdirectory
         # and all other mounted directories with a DCIM subdirectory
         # Yes, this is highly Debian/Linux-specific
-        @ARGV = (glob("$ENV{XDG_RUNTIME_DIR}/gvfs/*/*/DCIM/*"),
-                 map { "$_/*" }
+        @ARGV = (
+                 glob("$ENV{XDG_RUNTIME_DIR}/gvfs/*/*/DCIM/*"),
+                 map { $printer->output_list( "Reading $_" ); bsd_glob("$_/*") }
+                 grep { ! $seen{ $_ }++ }
                  grep { -d }
+                 map { "$ENV{XDG_RUNTIME_DIR}/gvfs/$_" }
                  map { m!-> file://(.*)$! ? "$1/DCIM"
-                     : m!-> mtp://(.*)$!  ? "$1/Interner gemeinsamer Speicher/DCIM"
+                     : m!-> mtp://(.*)$!  ? "mtp:host=${1}Interner gemeinsamer Speicher/DCIM"
                      : ()
                      } `gio mount -l`
                 );
