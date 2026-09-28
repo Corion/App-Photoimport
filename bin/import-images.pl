@@ -114,8 +114,10 @@ sub archive_dir {
         my $adir = File::Spec->catdir($dir,$archive_dir);
         if( ! -d $adir) {
             mkdir $adir
-                or warn "Couldn't create archive directory '$adir'";
-            return undef
+                or do {
+                    warn "Couldn't create archive directory '$adir'";
+                    return undef
+                }
         };
         return $adir
     }
