@@ -30,6 +30,7 @@ GetOptions(
     'buffer-size|b=i' => \my $bufsize,
     'dry-run|n'       => \my $dry_run,
     'action=s'        => \my $action,
+    'rsync=s'         => \my $rsync,
 ) or pod2usage(1);
 
 $bufsize //= 65536 * 1024 * 1024;
@@ -38,6 +39,7 @@ if ($archive_dir) {
 };
 
 $action //= 'copy';
+$rsync //= 'rsync';
 
 sub take($;@) {
     my $list = shift;
@@ -147,6 +149,7 @@ if( scalar @files ) {
     $printer->output_list(sprintf "%s unsorted images in %s", scalar(@files), join ", ", @ARGV);
 };
 
+my %target_directories;
 
 my $last_time = DateTime->from_epoch( epoch => 1 );
 my $target_directory;
@@ -156,28 +159,55 @@ for my $image (@files) {
     my $this_distance = (capture_date($image) - $last_time);
     if ($reference+$this_distance > $reference+$distance) {
         $target_directory = File::Spec->catdir($target,$capture_date);
-        if (! -d $target_directory) {
-            mkdir $target_directory or die "Couldn't create '$target_directory': $!";
-        }
     };
     $last_time = capture_date($image);
-    # and copy the files into their newly found location:
-    my $base = basename $image;
-    my $target_name = File::Spec->catfile($target_directory, $base);
-    if (-f $target_name) {
-        warn "$target_name already exists, skipped.\n";
-    } else {
+
+    $target_directories{ $target_directory } //= [];
+    push $target_directories{ $target_directory }->@*, $image;
+}
+
+for my $target_directory (sort keys %target_directories) {
+    $printer->output_list("Copying to $target_directory");
+
+    # Sort again by source directory
+    my %source_directory;
+    for my $image ($target_directories{ $target_directory }->@*) {
+        $source_directory{ dirname $image } //= [];
+        push $source_directory{ dirname $image }->@*, basename $image;
+    };
+
+    for my $dir (sort keys %source_directory) {
+        my @cmd = ($rsync, '--no-relative', '--files-from=-', $dir, $target_directory );
         if( $dry_run ) {
-            say "$action $image $target_name";
+            $printer->output_permanent( join " ", @cmd  );
+            $printer->output_permanent( $source_directory{$dir}->@* );
+
         } else {
-            if( 'copy' eq $action ) {
-                cp $image => $target_name, $bufsize;
-                archive_file( $image );
-            } elsif( 'move' eq $action ) {
-                move $image => $target_name
-                    or warn "Couldn't move '$image' to '$target_name': $!";
-            };
+            local $SIG{PIPE} = sub { die "Rsync connection broke" };
+            my $pid = open my $rsync_in, '|-', @cmd
+                or die "Couldn't launch $rsync: $!";
+            print $rsync_in join "\n", $source_directory{ $dir }->@*;
+            close $rsync_in;
+            my $err = $? >> 8;
+
+            if( $err ) {
+                $printer->output_permanent("rsync failed with $err");
+
+            } else {
+
+                for my $image ( $source_directory{ $dir }->@* ) {
+                    my $target_name = archive_dir("$dir/$image");
+                    if( $target_name ) {
+                        $printer->output_permanent("$image -> $dir/$archive_dir/");
+                        if(! move "$dir/$image" => $target_name) {
+                            $printer->output_permanent( "Couldn't move '$dir/$image' to '$target_name': $!" );
+                            $printer->output_list("Copying to $target_directory");
+                        };
+                    }
+                }
+            }
         }
-    }
+    };
 };
+
 $printer->output_list();
