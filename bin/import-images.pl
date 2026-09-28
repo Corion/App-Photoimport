@@ -69,7 +69,7 @@ sub capture_date {
 
 memoize('capture_date');
 my $printer = Term::Output::List->new( hook_warnings => 1 );
-$printer->output_list("Reading files");
+$printer->output_list("Collecting files");
 
 if (! @ARGV) {
     if( $^O =~ /mswin/i ) {
@@ -104,7 +104,7 @@ if (! @ARGV) {
 
 if ($verbose) {
     local $" = ",";
-    print " @ARGV";
+    $printer->output_permanent( "Scanning @ARGV" );
 }
 
 sub archive_dir {
@@ -127,7 +127,7 @@ sub archive_file {
     my ($file) = @_;
     if (defined( my $archive = archive_dir($file))) {
         if( $dry_run ) {
-            say "move$_[0] => $archive";
+            $printer->output_permanent("move $_[0] => $archive" );
         } else {
             move $_[0] => $archive
                 or warn "Couldn't archive $_[0]: $!";
@@ -135,27 +135,35 @@ sub archive_file {
     }
 }
 
+$printer->output_list("Collecting file dates");
 my %c;
 my @files = sort { capture_date($a) <=> capture_date($b) }
             #take_first 3,
             grep { -f }
-            map  { bsd_glob "$_/*" } @ARGV;
+            map  { ;
+                   ; $printer->output_list("Collecting file dates for $_");
+                   ; bsd_glob "$_/*" } @ARGV;
 
 # Images taken 5 hours apart get a new directory:
 my $distance = DateTime::Duration->new( hours => 5  );
 my $reference = DateTime->now;
 
 if( scalar @files ) {
-    $printer->output_list(sprintf "%s unsorted images in %s", scalar(@files), join ", ", @ARGV);
+    $printer->output_list(sprintf "%s unsorted images", scalar @files);
 };
 
 my %target_directories;
 
 my $last_time = DateTime->from_epoch( epoch => 1 );
 my $target_directory;
+my $total = @files;
+my ($earliest, $latest);
 for my $image (@files) {
     my $capture_date = capture_date($image)->strftime('%Y%m%d-%H%M');
-    $printer->output_list("Processing $capture_date");
+    $earliest //= $capture_date;
+    $latest //= $earliest;
+    $latest = $capture_date if( $capture_date gt $latest );
+    $printer->output_list("Processing $capture_date ( $earliest -> $latest )");
     my $this_distance = (capture_date($image) - $last_time);
     if ($reference+$this_distance > $reference+$distance) {
         $target_directory = File::Spec->catdir($target,$capture_date);
