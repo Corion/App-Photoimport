@@ -142,12 +142,77 @@ sub archive_file {
 
 $printer->output_list("Collecting file dates");
 my %c;
-my @files = sort { capture_date($a) <=> capture_date($b) }
-            #take_first 3,
+my @files = #take_first 3,
             grep { -f }
             map  { ;
                    ; $printer->output_list("Collecting file dates for $_");
-                   ; bsd_glob "$_/*" } @ARGV;
+                   ; bsd_glob "$_/*"
+                 }
+            @ARGV;
+
+# Now, look at the first file, to get our calendar starting point and also the
+# first target directory to scan. We do this before reading the capture date
+# because reading the capture date is slow
+my $earliest_date;
+for my $f (@files) {
+    my $ts;
+    if( $f =~ m/(20\d\d)([01]\d)([0123]\d).([012]\d)([0-5]\d)([0-5]\d)/ ) {
+        # Guess from filename
+        $ts = "$1$2$3-$4$5$6";
+    } else {
+        # take from file
+        $ts = capture_date( $f )->strftime('%Y%m%d-%H%M%S');
+    }
+    $earliest_date //= $ts;
+    if( $earliest_date gt $ts ) {
+        $earliest_date = $ts;
+    }
+}
+$printer->output_permanent("Earliest is " . $earliest_date);
+
+sub existing_directories( $dir, $earliest_date ) {
+    $earliest_date =~ s/-.*//; # just take the whole day
+    opendir my $dh, $dir
+        or die "Can't read '$dir': $!";
+    return
+        sort
+        grep { /^\d\d\d\d/ and $_ ge $earliest_date }
+        #map { $printer->output_permanent("$_ / $earliest_date"); $_ }
+        grep { !/^\./ }
+        readdir $dh;
+}
+my @dirs = existing_directories( $target, $earliest_date );
+
+# Now go two months before the earliest date and use all calendar entries
+# since then to get overlapping multi-day entries correct under the assumption
+# that we will not have multi-day entries longer than 2 months
+if( $earliest_date and $earliest_date =~ /(\d\d\d\d)(\d\d)(\d\d)/ ) {
+    $earliest_date = DateTime->new( year => $1, month => $2, day => $3)->add( months => -2);
+}
+
+sub existing_files( $target_directory, @directories ) {
+    my %res;
+    for my $d (@directories) {
+        my $dir = "$target_directory/$d";
+        if(opendir my $dh, $dir) {
+            for my $file (grep { !/^\./ } readdir( $dh )) {
+                $res{ $file } //= $dir;
+            }
+
+        } else {
+            $printer->output_permanent("Couldn't read existing files in '$dir': $!");
+            next;
+        }
+
+    }
+    return \%res
+}
+
+my $exists = existing_files( $target, @dirs );
+# We only need capture_date() for the files that have no place already
+my @new_files = sort { capture_date($a) <=> capture_date($b) }
+                grep { ! $exists->{ $_ } }
+                @files;
 
 # Images taken 5 hours apart get a new directory:
 my $distance = DateTime::Duration->new( hours => 5  );
@@ -162,18 +227,24 @@ my %target_directories;
 my $last_time = DateTime->from_epoch( epoch => 1 );
 my $target_directory;
 my $total = @files;
-my ($earliest, $latest);
 for my $image (@files) {
-    my $capture_date = capture_date($image)->strftime('%Y%m%d-%H%M');
-    $earliest //= $capture_date;
-    $latest //= $earliest;
-    $latest = $capture_date if( $capture_date gt $latest );
-    $printer->output_list("Processing $capture_date ( $earliest -> $latest )");
-    my $this_distance = (capture_date($image) - $last_time);
-    if ($reference+$this_distance > $reference+$distance) {
-        $target_directory = File::Spec->catdir($target,$capture_date);
-    };
-    $last_time = capture_date($image);
+    # @files contains @new_files, so we do everything
+
+    if( ! $exists->{ basename($image) }) {
+        my $capture_date = capture_date($image)->strftime('%Y%m%d-%H%M');
+        $printer->output_list("Processing $capture_date ( $earliest_date )");
+        my $this_distance = (capture_date($image) - $last_time);
+        if ($reference+$this_distance > $reference+$distance) {
+            $target_directory = File::Spec->catdir($target,$capture_date);
+
+            # XXX Add calendar entry to directory name
+
+        };
+        $last_time = capture_date($image);
+    } else {
+        # In case an image was half-copied, rsync can pick up from there
+        $target_directory = $exists->{ basename($image) };
+    }
 
     $target_directories{ $target_directory } //= [];
     push $target_directories{ $target_directory }->@*, $image;
