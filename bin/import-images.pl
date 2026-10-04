@@ -1,5 +1,6 @@
 #!/usr/bin/perl -w
 use 5.020;
+use experimental 'signatures';
 use DateTime;
 use DateTime::Duration;
 use Image::ExifTool;
@@ -41,6 +42,7 @@ if ($archive_dir) {
 $action //= 'copy';
 $rsync //= 'rsync';
 
+{ no experimental 'signatures';
 sub take($;@) {
     my $list = shift;
     @_[ @$list ]
@@ -49,6 +51,7 @@ sub take($;@) {
 sub take_first($;@) {
     my $count = shift;
     take([0..$count-1],@_);
+}
 }
 
 $target ||= File::Spec->catdir($ENV{USERPROFILE}, 'Eigene Dateien', 'Eigene Bilder');
