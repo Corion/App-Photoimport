@@ -96,10 +96,9 @@ if (! @ARGV) {
                  map { bsd_glob("$_/*") }
                  grep { ! $seen{ $_ }++ }
                  grep { -d }
-                 map { "$ENV{XDG_RUNTIME_DIR}/gvfs/$_" }
-                 map { m!-> file://(.*)\s*\z! ? "$1/DCIM"
-                     : m!-> gphoto2://(.*)\s*\z!  ? "gphoto2:host=${1}DCIM"
-                     : m!-> mtp://(.*)\s*\z!  ? "mtp:host=${1}Interner gemeinsamer Speicher/DCIM"
+                 map { m!-> file://(.*)\s*\z!    ? "$1/DCIM"
+                     : m!-> gphoto2://(.*)\s*\z! ? "$ENV{XDG_RUNTIME_DIR}/gvfs/gphoto2:host=${1}DCIM"
+                     : m!-> mtp://(.*)\s*\z!     ? "$ENV{XDG_RUNTIME_DIR}/gvfs/mtp:host=${1}Interner gemeinsamer Speicher/DCIM"
                      : ()
                      } `gio mount -l`
                 );
