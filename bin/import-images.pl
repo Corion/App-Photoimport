@@ -13,6 +13,7 @@ use Memoize qw(memoize);
 use Term::Output::List;
 use File::XDG;
 use Net::CalDAV::FindEntry;
+#use Text::CleanFragment;
 use YAML::Tiny 'LoadFile';
 
 BEGIN {
@@ -294,7 +295,7 @@ for my $image (@files) {
         if( $title ) {
             $album_directory .= " - $title";
         }
-        $target_directory = File::Spec->catdir($target, $album_directory);
+        $target_directory = File::Spec->catdir($target, $album_directory =~ s/[:]//gr);
 
         $last_time = capture_date($image);
 
