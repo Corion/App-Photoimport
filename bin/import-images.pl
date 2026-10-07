@@ -11,6 +11,9 @@ use File::Spec;
 use File::Copy qw(cp move);
 use Memoize qw(memoize);
 use Term::Output::List;
+use File::XDG;
+use Net::CalDAV::FindEntry;
+use YAML::Tiny 'LoadFile';
 
 BEGIN {
     if ($^O =~ /\bMSWin32\b|\bcygwin\b/) {
@@ -32,6 +35,8 @@ GetOptions(
     'dry-run|n'       => \my $dry_run,
     'action=s'        => \my $action,
     'rsync=s'         => \my $rsync,
+    'config=s'        => \my $config_file,
+    'unsafe|k'        => \my $unsafe_ssl,
 ) or pod2usage(1);
 
 $bufsize //= 65536 * 1024 * 1024;
@@ -41,6 +46,8 @@ if ($archive_dir) {
 
 $action //= 'copy';
 $rsync //= 'rsync';
+
+$config_file //= File::XDG->new( name => 'import-images', api => 1 )->lookup_config_file( 'calendar.yml' );
 
 { no experimental 'signatures';
 sub take($;@) {
@@ -170,16 +177,33 @@ for my $f (@files) {
 }
 $printer->output_permanent("Earliest is " . $earliest_date);
 
+sub r_readdir($dir, $type="d") {
+    if( $dir =~ m!^ssh:(?<host>(\w+\@)?[^:]+):(?<path>.*)! ) {
+        my $p = $-{path}->[0];
+
+        my $cmd = "ssh '$-{host}->[0]' 'find \"$p\" -type $type'";
+
+        if($verbose) {
+            $printer->output_permanent($cmd);
+        }
+
+        return split /\r?\n/, readpipe( $cmd );
+    } else {
+        opendir my $dh, $dir
+            or die "Can't read '$dir': $!";
+        return readdir($dh);
+    }
+}
+
 sub existing_directories( $dir, $earliest_date ) {
     $earliest_date =~ s/-.*//; # just take the whole day
-    opendir my $dh, $dir
-        or die "Can't read '$dir': $!";
+
     return
         sort
         grep { /^\d\d\d\d/ and $_ ge $earliest_date }
         #map { $printer->output_permanent("$_ / $earliest_date"); $_ }
         grep { !/^\./ }
-        readdir $dh;
+        r_readdir( $dir, 'd' );
 }
 my @dirs = existing_directories( $target, $earliest_date );
 
@@ -190,20 +214,17 @@ if( $earliest_date and $earliest_date =~ /(\d\d\d\d)(\d\d)(\d\d)/ ) {
     $earliest_date = DateTime->new( year => $1, month => $2, day => $3)->add( months => -2);
 }
 
+# This needs to (also) become an ssh invocation, maybe simply `find @dirs`,
+# but we have whitespace in directories, so that needs quoting...
 sub existing_files( $target_directory, @directories ) {
     my %res;
     for my $d (@directories) {
         my $dir = "$target_directory/$d";
-        if(opendir my $dh, $dir) {
-            for my $file (grep { !/^\./ } readdir( $dh )) {
-                $res{ $file } //= $dir;
-            }
+        my @files = r_readdir( $dir, 'f' );
 
-        } else {
-            $printer->output_permanent("Couldn't read existing files in '$dir': $!");
-            next;
+        for my $file (@files) {
+            $res{ $file } //= $dir;
         }
-
     }
     return \%res
 }
@@ -225,22 +246,59 @@ if( scalar @files ) {
 my %target_directories;
 
 my $last_time = DateTime->from_epoch( epoch => 1 );
-my $target_directory;
 my $total = @files;
+my $calendar;
+my ($title, $ts);
 for my $image (@files) {
     # @files contains @new_files, so we do everything
+    my $target_directory;
 
     if( ! $exists->{ basename($image) }) {
         my $capture_date = capture_date($image)->strftime('%Y%m%d-%H%M');
-        $printer->output_list("Processing $capture_date ( $earliest_date )");
         my $this_distance = (capture_date($image) - $last_time);
-        if ($reference+$this_distance > $reference+$distance) {
-            $target_directory = File::Spec->catdir($target,$capture_date);
 
-            # XXX Add calendar entry to directory name
+        if( ! $calendar ) {
+            my $calendar_config;
+            my $calendar_config_file = File::XDG->new( name => 'import-images', api => 1 )->lookup_config_file( 'calendar.yml' );
+            if( $calendar_config_file ) {
+                $calendar_config = LoadFile($calendar_config_file);
+                $calendar = Net::CalDAV::FindEntry->new($calendar_config);
 
+                if( $unsafe_ssl ) {
+                    $calendar->ua->verify_SSL(0);
+                }
+            }
         };
+
+        if ($reference+$this_distance > $reference+$distance) {
+            $ts = capture_date($image)->strftime('%Y%m%d-%H%M');
+        }
+
+        if( $calendar ) {
+            # Add calendar entry to directory name
+            my $cts = capture_date($image)->strftime('%Y-%m-%dT%H:%M:%S');
+            my @events = $calendar->get_events(
+                after    => $cts,
+                before   => $cts,
+            );
+            my ($ev) = sort { $b->{start} cmp $a->{start} } @events;
+            if( $ev ) {
+                if( $ev->{title} ne $title ) {
+                    $ts = capture_date($image)->strftime('%Y%m%d-%H%M');
+                    $title = $ev->{title};
+                }
+            };
+        }
+
+        my $album_directory = $ts;
+        if( $title ) {
+            $album_directory .= " - $title";
+        }
+        $target_directory = File::Spec->catdir($target, $album_directory);
+
         $last_time = capture_date($image);
+
+        $printer->output_list("Processing $capture_date ($album_directory)");
     } else {
         # In case an image was half-copied, rsync can pick up from there
         $target_directory = $exists->{ basename($image) };
@@ -261,7 +319,8 @@ for my $target_directory (sort keys %target_directories) {
     };
 
     for my $dir (sort keys %source_directory) {
-        my @cmd = ($rsync, '--no-relative', '--files-from=-', $dir, $target_directory );
+        $target_directory =~ s!^ssh:!!;
+        my @cmd = ($rsync, '-az', '--no-relative', '--files-from=-', $dir, $target_directory );
         if( $dry_run ) {
             $printer->output_permanent( join " ", @cmd  );
             $printer->output_permanent( $source_directory{$dir}->@* );
