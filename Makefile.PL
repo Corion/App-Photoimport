@@ -11,8 +11,10 @@ WriteMakefile(
       : ()),
     PL_FILES            => {},
     PREREQ_PM => {
-        # These will be unbundled later
+        'DateTime'        => 0,
+        'File::XDG'       => 0,
         'Image::ExifTool' => 0,
+        'Term::Output::List' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );
