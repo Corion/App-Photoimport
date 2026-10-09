@@ -316,7 +316,10 @@ for my $image (@files) {
     push $target_directories{ $target_directory }->@*, $image;
 
     currently(
-        map { sprintf "%s - %s\t\t%d", " ", $_, scalar $target_directories{ $_ }->@* }
+        map { my $d = $_;
+              $d =~ s/^(ssh:)?\Q$target\E//;
+              sprintf "%s - %s\t\t%d", " ", $d, scalar $target_directories{ $_ }->@*
+            }
         sort keys %target_directories
     );
 }
@@ -325,7 +328,10 @@ my %done;
 for my $target_directory (sort keys %target_directories) {
     $done{ $target_directory } = ".";
     currently(
-        map { sprintf "%s - %s\t\t%d", $done{ $_ }, $_, scalar $target_directories{ $_ }->@* }
+        map { my $d = $_;
+              $d =~ s/^(ssh:)?\Q$target\E//;
+              sprintf "%s - %s\t\t%d", $done{ $_ }, $d, scalar $target_directories{ $_ }->@*
+            }
         sort keys %target_directories
     );
 
