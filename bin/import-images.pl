@@ -331,7 +331,7 @@ for my $target_directory (sort keys %target_directories) {
     currently(
         map { my $d = $_;
               $d =~ s!^(ssh:)?\Q$target\E[/\\]?!!;
-              sprintf "%s - %s\t\t%d", $done{ $_ }, $d, scalar $target_directories{ $_ }->@*
+              sprintf "%s - %s\t\t%d", $done{ $_ } // " ", $d, scalar $target_directories{ $_ }->@*
             }
         sort keys %target_directories
     );
