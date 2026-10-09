@@ -232,7 +232,7 @@ sub existing_files( $target_directory, @directories ) {
         my @files = r_readdir( $dir, 'f' );
 
         for my $file (@files) {
-            $res{ $file } //= $dir;
+            $res{ basename( $file ) } //= $dir;
         }
     }
     return \%res
