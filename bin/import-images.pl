@@ -306,7 +306,7 @@ for my $image (@files) {
 
         $last_time = capture_date($image);
 
-        currently("Processing $capture_date ($album_directory)");
+        #currently("Processing $capture_date ($album_directory)");
     } else {
         # In case an image was half-copied, rsync can pick up from there
         $target_directory = $exists->{ basename($image) };
@@ -314,10 +314,20 @@ for my $image (@files) {
 
     $target_directories{ $target_directory } //= [];
     push $target_directories{ $target_directory }->@*, $image;
+
+    currently(
+        map { sprintf "%s - %s\t\t%d", " ", $_, scalar $target_directories{ $_ }->@* }
+        sort keys %target_directories
+    );
 }
 
+my %done;
 for my $target_directory (sort keys %target_directories) {
-    currently("Copying to $target_directory");
+    $done{ $target_directory } = ".";
+    currently(
+        map { sprintf "%s - %s\t\t%d", $done{ $_ }, $_, scalar $target_directories{ $_ }->@* }
+        sort keys %target_directories
+    );
 
     # Sort again by source directory
     my %source_directory;
@@ -352,13 +362,13 @@ for my $target_directory (sort keys %target_directories) {
                         $printer->output_permanent("$image -> $dir/$archive_dir/");
                         if(! move "$dir/$image" => $target_name) {
                             $printer->output_permanent( "Couldn't move '$dir/$image' to '$target_name': $!" );
-                            currently("Copying to $target_directory");
                         };
                     }
                 }
             }
         }
     };
+    $done{ $target_directory } = "x";
 };
 
 $printer->output_list();
