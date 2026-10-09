@@ -163,6 +163,10 @@ my @files = #take_first 3,
                    ; bsd_glob "$_/*"
                  }
             @ARGV;
+if( ! @files) {
+    # nothing to do
+    exit;
+}
 
 # Now, look at the first file, to get our calendar starting point and also the
 # first target directory to scan. We do this before reading the capture date
