@@ -79,6 +79,7 @@ sub capture_date {
 }
 
 memoize('capture_date');
+binmode STDOUT, ':encoding(UTF-8)';
 my $printer = Term::Output::List->new( hook_warnings => 1 );
 
 sub currently( @msg ) {
