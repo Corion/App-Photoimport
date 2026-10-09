@@ -80,7 +80,12 @@ sub capture_date {
 
 memoize('capture_date');
 my $printer = Term::Output::List->new( hook_warnings => 1 );
-$printer->output_list("Collecting files");
+
+sub currently( @msg ) {
+    $printer->output_list( @msg );
+}
+
+currently("Collecting files");
 
 if (! @ARGV) {
     if( $^O =~ /mswin/i ) {
@@ -148,12 +153,12 @@ sub archive_file {
     }
 }
 
-$printer->output_list("Collecting file dates");
+currently("Collecting file dates");
 my %c;
 my @files = #take_first 3,
             grep { -f }
             map  { ;
-                   ; $printer->output_list("Collecting file dates for $_");
+                   ; currently("Collecting file dates for $_");
                    ; bsd_glob "$_/*"
                  }
             @ARGV;
@@ -184,6 +189,7 @@ sub r_readdir($dir, $type="d") {
 
         my $cmd = "ssh '$-{host}->[0]' 'find \"$p\" -type $type'";
 
+        currently("Reading '$p'");
         if($verbose) {
             $printer->output_permanent($cmd);
         }
@@ -242,7 +248,7 @@ my $distance = DateTime::Duration->new( hours => 5  );
 my $reference = DateTime->now;
 
 if( scalar @files ) {
-    $printer->output_list(sprintf "%s unsorted images", scalar @files);
+    currently(sprintf "%s unsorted images", scalar @files);
 };
 
 my %target_directories;
@@ -300,7 +306,7 @@ for my $image (@files) {
 
         $last_time = capture_date($image);
 
-        $printer->output_list("Processing $capture_date ($album_directory)");
+        currently("Processing $capture_date ($album_directory)");
     } else {
         # In case an image was half-copied, rsync can pick up from there
         $target_directory = $exists->{ basename($image) };
@@ -311,7 +317,7 @@ for my $image (@files) {
 }
 
 for my $target_directory (sort keys %target_directories) {
-    $printer->output_list("Copying to $target_directory");
+    currently("Copying to $target_directory");
 
     # Sort again by source directory
     my %source_directory;
@@ -346,7 +352,7 @@ for my $target_directory (sort keys %target_directories) {
                         $printer->output_permanent("$image -> $dir/$archive_dir/");
                         if(! move "$dir/$image" => $target_name) {
                             $printer->output_permanent( "Couldn't move '$dir/$image' to '$target_name': $!" );
-                            $printer->output_list("Copying to $target_directory");
+                            currently("Copying to $target_directory");
                         };
                     }
                 }
