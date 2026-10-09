@@ -195,7 +195,7 @@ sub r_readdir($dir, $type="d") {
             $printer->output_permanent($cmd);
         }
 
-        return map { s!^\Q$dir\E[/\\]?!!r }
+        return map { s!^\Q$p\E[/\\]?!!r }
                split /\r?\n/,readpipe( $cmd );
     } else {
         opendir my $dh, $dir
