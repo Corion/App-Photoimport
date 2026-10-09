@@ -366,7 +366,6 @@ for my $target_directory (sort keys %target_directories) {
                 for my $image ( $source_directory{ $dir }->@* ) {
                     my $target_name = archive_dir("$dir/$image");
                     if( $target_name ) {
-                        $printer->output_permanent("$image -> $dir/$archive_dir/");
                         if(! move "$dir/$image" => $target_name) {
                             $printer->output_permanent( "Couldn't move '$dir/$image' to '$target_name': $!" );
                         };
