@@ -318,7 +318,7 @@ for my $image (@files) {
 
     currently(
         map { my $d = $_;
-              $d =~ s/^(ssh:)?\Q$target\E//;
+              $d =~ s!^(ssh:)?\Q$target\E[/\\]?!!;
               sprintf "%s - %s\t\t%d", " ", $d, scalar $target_directories{ $_ }->@*
             }
         sort keys %target_directories
@@ -330,7 +330,7 @@ for my $target_directory (sort keys %target_directories) {
     $done{ $target_directory } = ".";
     currently(
         map { my $d = $_;
-              $d =~ s/^(ssh:)?\Q$target\E//;
+              $d =~ s!^(ssh:)?\Q$target\E[/\\]?!!;
               sprintf "%s - %s\t\t%d", $done{ $_ }, $d, scalar $target_directories{ $_ }->@*
             }
         sort keys %target_directories
