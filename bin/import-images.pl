@@ -188,7 +188,8 @@ sub r_readdir($dir, $type="d") {
             $printer->output_permanent($cmd);
         }
 
-        return split /\r?\n/, readpipe( $cmd );
+        return map { s!^\Q$dir\E[/\\]?!!r }
+               split /\r?\n/,readpipe( $cmd );
     } else {
         opendir my $dh, $dir
             or die "Can't read '$dir': $!";
